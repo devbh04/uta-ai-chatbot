@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CardRenderer } from "@/components/chat/card-renderer";
-import { cn } from "@/lib/utils";
+import { cn, formatMessageContent } from "@/lib/utils";
 
 interface Message {
   role: "user" | "assistant" | "agent" | "system";
-  content: string;
+  content: any;
   timestamp: string;
   card_payload?: any;
 }
@@ -319,7 +319,7 @@ export function ChatViewer({
                         : "bg-primary/10 text-primary border-primary/20"
                     )}
                   >
-                    {msg.content}
+                    {formatMessageContent(msg.content)}
                   </div>
                 )}
 

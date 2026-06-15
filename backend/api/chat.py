@@ -47,12 +47,35 @@ async def consumer_chat(websocket: WebSocket, session_id: str):
     await manager.connect_consumer(session_id, websocket)
 
     try:
-        # Send welcome message
-        await websocket.send_json({
-            "type": "system",
-            "content": f"Welcome, {session['consumer_name']}! I'm North Star, "
-            "your outdoor gear assistant. How can I help you today?",
+        # Send welcome message with interactive support options card
+        welcome_message = {
+            "role": "assistant",
+            "content": f"Welcome, {session['consumer_name']}! I'm North Star, your outdoor gear assistant. How can I help you today?",
             "timestamp": datetime.utcnow().isoformat(),
+            "card_payload": {
+                "type": "help_menu",
+                "data": {
+                    "options": [
+                        "Track my order",
+                        "Returns & exchanges",
+                        "Product recommendations",
+                        "Talk to a human agent"
+                    ],
+                    "suggest_handoff": False
+                }
+            }
+        }
+
+        # Store welcome message in MongoDB session history
+        await mongo.sessions.update_one(
+            {"session_id": session_id},
+            {"$push": {"messages": welcome_message}},
+        )
+
+        # Send welcome message over WebSocket
+        await websocket.send_json({
+            "type": "message",
+            **welcome_message
         })
 
         while True:

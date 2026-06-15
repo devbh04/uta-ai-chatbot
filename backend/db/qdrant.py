@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 
 from google import genai
+from google.genai import types
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
@@ -17,7 +18,7 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 # Gemini embedding model configuration
-EMBEDDING_MODEL = "text-embedding-004"
+EMBEDDING_MODEL = "gemini-embedding-2"
 EMBEDDING_DIMENSIONS = 768
 
 
@@ -84,6 +85,9 @@ class QdrantManager:
         result = self._genai_client.models.embed_content(
             model=EMBEDDING_MODEL,
             contents=text,
+            config=types.EmbedContentConfig(
+                output_dimensionality=EMBEDDING_DIMENSIONS
+            ),
         )
         return result.embeddings[0].values
 

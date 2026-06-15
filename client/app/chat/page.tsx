@@ -16,11 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CardRenderer } from "@/components/chat/card-renderer";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatMessageContent } from "@/lib/utils";
 
 interface Message {
   role: "user" | "assistant" | "agent" | "system";
-  content: string;
+  content: any;
   timestamp: string;
   card_payload?: any;
 }
@@ -360,7 +360,7 @@ export default function ChatPage() {
                           : "bg-white text-foreground border-border"
                       )}
                     >
-                      {msg.content}
+                      {formatMessageContent(msg.content)}
                     </div>
                   )}
 
