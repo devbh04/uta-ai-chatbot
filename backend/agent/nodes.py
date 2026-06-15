@@ -30,12 +30,27 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
+import os
+if settings.gcp_credentials_path:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.gcp_credentials_path
+
 # Initialize the LLM — shared across all nodes
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=settings.gemini_api_key,
-    temperature=0.7,
-)
+if settings.gcp_project and settings.gcp_credentials_path:
+    from langchain_google_vertexai import ChatVertexAI
+    logger.info("Initializing Vertex AI Chat Model (Project: %s, Location: %s)", settings.gcp_project, settings.gcp_location)
+    llm = ChatVertexAI(
+        model="gemini-2.5-flash",
+        project=settings.gcp_project,
+        location=settings.gcp_location,
+        temperature=0.7,
+    )
+else:
+    logger.info("Initializing Google AI Studio Chat Model")
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=settings.gemini_api_key,
+        temperature=0.7,
+    )
 
 # LLM with tools bound — for nodes that need tool calling
 llm_with_tools = llm.bind_tools(ALL_TOOLS)
@@ -60,11 +75,20 @@ def intent_router(state: AgentState) -> dict[str, Any]:
     last_message = messages[-1]
 
     # Use a separate LLM call for classification (low temperature for consistency)
-    classifier = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=settings.gemini_api_key,
-        temperature=0.1,
-    )
+    if settings.gcp_project and settings.gcp_credentials_path:
+        from langchain_google_vertexai import ChatVertexAI
+        classifier = ChatVertexAI(
+            model="gemini-2.5-flash",
+            project=settings.gcp_project,
+            location=settings.gcp_location,
+            temperature=0.1,
+        )
+    else:
+        classifier = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=settings.gemini_api_key,
+            temperature=0.1,
+        )
 
     response = classifier.invoke([
         SystemMessage(content=INTENT_CLASSIFICATION_PROMPT),

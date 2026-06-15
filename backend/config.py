@@ -18,7 +18,12 @@ class Settings(BaseSettings):
     )
 
     # --- Gemini ---
-    gemini_api_key: str
+    gemini_api_key: str = ""
+
+    # --- GCP / Vertex AI ---
+    gcp_credentials_path: str = ""
+    gcp_project: str = ""
+    gcp_location: str = "us-central1"
 
     # --- MongoDB ---
     mongodb_uri: str = "mongodb://localhost:27017"

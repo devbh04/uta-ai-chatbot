@@ -41,6 +41,11 @@ async def lifespan(app: FastAPI):
     Startup:  Connect to MongoDB + Qdrant, initialize collections, seed data.
     Shutdown: Disconnect from all services.
     """
+    # Register the main running event loop in the ConnectionManager
+    import asyncio
+    from api.websocket_manager import manager
+    manager.main_loop = asyncio.get_running_loop()
+
     logger.info("=" * 60)
     logger.info("  North Star AI Chatbot — Starting Up")
     logger.info("=" * 60)
@@ -48,10 +53,24 @@ async def lifespan(app: FastAPI):
     # Connect to databases
     await mongo.connect()
     qdrant.connect()
-    qdrant.init_collection()
+    recreated = qdrant.init_collection()
 
     # Seed data (only if collections are empty)
     await seed_all()
+
+    # If the collection was created or recreated, ensure all existing products are embedded
+    if recreated:
+        product_count = await mongo.products.count_documents({})
+        if product_count > 0:
+            logger.info("Re-embedding %d existing MongoDB products into Qdrant...", product_count)
+            cursor = mongo.products.find({}, {"_id": 0})
+            products = await cursor.to_list(length=1000)
+            for product in products:
+                try:
+                    qdrant.upsert_product(product)
+                except Exception as e:
+                    logger.error("Failed to re-embed product '%s': %s", product["name"], e)
+            logger.info("Re-embedding completed successfully.")
 
     logger.info("=" * 60)
     logger.info("  Ready to serve requests!")

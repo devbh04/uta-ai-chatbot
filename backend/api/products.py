@@ -49,7 +49,7 @@ async def search_products_endpoint(
     matches if no results exceed the relevance threshold.
     """
     # Try threshold-based search first
-    results = qdrant.search_products(query, limit=limit, score_threshold=0.7)
+    results = qdrant.search_products(query, limit=limit, score_threshold=0.55)
 
     if results:
         return {"results": results, "match_type": "exact"}

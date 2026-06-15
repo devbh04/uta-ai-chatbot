@@ -29,6 +29,9 @@ class ConnectionManager:
         # session_id -> set of WebSockets (multiple agents can view one session)
         self.chat_viewer_connections: dict[str, set[WebSocket]] = {}
 
+        # Main event loop reference for thread-safe websocket operations
+        self.main_loop = None
+
     # -------------------------------------------------------------------------
     # Consumer connections
     # -------------------------------------------------------------------------
@@ -113,13 +116,15 @@ class ConnectionManager:
         logger.info("Chat viewer disconnected: session=%s", session_id)
 
     async def broadcast_to_chat_viewers(
-        self, session_id: str, data: dict[str, Any]
+        self, session_id: str, data: dict[str, Any], exclude_ws: WebSocket | None = None
     ) -> None:
         """Broadcast a message to all agents viewing a specific session."""
         viewers = self.chat_viewer_connections.get(session_id, set())
         disconnected = set()
 
         for ws in viewers:
+            if ws == exclude_ws:
+                continue
             try:
                 await ws.send_json(data)
             except Exception:

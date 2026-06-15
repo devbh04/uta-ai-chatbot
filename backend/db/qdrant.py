@@ -2,7 +2,7 @@
 Qdrant vector database client and embedding pipeline.
 
 Manages a single 'products' collection. Embeds product text using
-Gemini text-embedding-004 (768 dimensions) and provides semantic search.
+Gemini gemini-embedding-001 (3072 dimensions) and provides semantic search.
 """
 
 import logging
@@ -18,8 +18,8 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 # Gemini embedding model configuration
-EMBEDDING_MODEL = "gemini-embedding-2"
-EMBEDDING_DIMENSIONS = 768
+EMBEDDING_MODEL = "gemini-embedding-001"
+EMBEDDING_DIMENSIONS = 3072
 
 
 class QdrantManager:
@@ -43,7 +43,18 @@ class QdrantManager:
             self._client = QdrantClient(url=settings.qdrant_url)
 
         # Initialize Gemini client for embeddings
-        self._genai_client = genai.Client(api_key=settings.gemini_api_key)
+        if settings.gcp_project and settings.gcp_credentials_path:
+            import os
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.gcp_credentials_path
+            logger.info("Initializing Qdrant Gemini Client using Vertex AI (Project: %s, Location: %s)", settings.gcp_project, settings.gcp_location)
+            self._genai_client = genai.Client(
+                vertexai=True,
+                project=settings.gcp_project,
+                location=settings.gcp_location,
+            )
+        else:
+            logger.info("Initializing Qdrant Gemini Client using AI Studio")
+            self._genai_client = genai.Client(api_key=settings.gemini_api_key)
 
         logger.info("Qdrant connected.")
 
@@ -60,8 +71,16 @@ class QdrantManager:
             raise RuntimeError("Qdrant is not connected. Call connect() first.")
         return self._client
 
-    def init_collection(self) -> None:
-        """Create the products collection if it doesn't exist."""
+    def init_collection(self) -> bool:
+        """
+        Create the products collection if it doesn't exist.
+        
+        If it exists but has a different dimension configuration, delete
+        and recreate it to match the current embedding dimensions.
+        
+        Returns:
+            bool: True if collection was created or recreated, False otherwise.
+        """
         collection_name = settings.qdrant_collection
         collections = [c.name for c in self.client.get_collections().collections]
 
@@ -74,8 +93,36 @@ class QdrantManager:
                 ),
             )
             logger.info("Created Qdrant collection: %s", collection_name)
+            return True
         else:
-            logger.info("Qdrant collection '%s' already exists.", collection_name)
+            # Check if vector dimensions match
+            info = self.client.get_collection(collection_name)
+            current_size = 0
+            vectors_config = info.config.params.vectors
+            if hasattr(vectors_config, 'size'):
+                current_size = vectors_config.size
+            elif isinstance(vectors_config, dict) and 'size' in vectors_config:
+                current_size = vectors_config['size']
+                
+            if current_size != EMBEDDING_DIMENSIONS:
+                logger.warning(
+                    "Qdrant collection size mismatch (%d != %d). Recreating collection...",
+                    current_size,
+                    EMBEDDING_DIMENSIONS
+                )
+                self.client.delete_collection(collection_name)
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=EMBEDDING_DIMENSIONS,
+                        distance=Distance.COSINE,
+                    ),
+                )
+                logger.info("Recreated Qdrant collection: %s", collection_name)
+                return True
+                
+            logger.info("Qdrant collection '%s' already exists with matching dimensions.", collection_name)
+            return False
 
     def embed_text(self, text: str) -> list[float]:
         """Generate an embedding vector for the given text using Gemini."""
@@ -137,7 +184,7 @@ class QdrantManager:
         self,
         query: str,
         limit: int = 5,
-        score_threshold: float = 0.7,
+        score_threshold: float = 0.55,
     ) -> list[dict]:
         """
         Semantic search over the product catalog.

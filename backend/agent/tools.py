@@ -28,6 +28,24 @@ logger = logging.getLogger(__name__)
 
 def _run_async(coro):
     """Run an async coroutine from a synchronous context."""
+    # If the main event loop is running and registered, schedule the coro there.
+    main_loop = getattr(manager, "main_loop", None)
+    if main_loop is not None and main_loop.is_running():
+        try:
+            # Check if the current thread is the main loop's thread
+            try:
+                current_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                current_loop = None
+
+            if current_loop != main_loop:
+                # Running from a worker thread — submit to the main event loop thread-safely
+                future = asyncio.run_coroutine_threadsafe(coro, main_loop)
+                return future.result()
+        except Exception as e:
+            logger.error("Error scheduling coroutine on main loop: %s", e)
+
+    # Fallback to creating a new loop or running on the current loop
     try:
         loop = asyncio.get_running_loop()
         import concurrent.futures
@@ -197,7 +215,7 @@ def search_products(query: str) -> dict:
         dict with matching products and match type ("exact" or "nearest").
     """
     # Try threshold-based search first
-    results = qdrant.search_products(query, limit=5, score_threshold=0.7)
+    results = qdrant.search_products(query, limit=5, score_threshold=0.55)
 
     if results:
         return {

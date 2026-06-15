@@ -47,36 +47,37 @@ async def consumer_chat(websocket: WebSocket, session_id: str):
     await manager.connect_consumer(session_id, websocket)
 
     try:
-        # Send welcome message with interactive support options card
-        welcome_message = {
-            "role": "assistant",
-            "content": f"Welcome, {session['consumer_name']}! I'm North Star, your outdoor gear assistant. How can I help you today?",
-            "timestamp": datetime.utcnow().isoformat(),
-            "card_payload": {
-                "type": "help_menu",
-                "data": {
-                    "options": [
-                        "Track my order",
-                        "Returns & exchanges",
-                        "Product recommendations",
-                        "Talk to a human agent"
-                    ],
-                    "suggest_handoff": False
+        # Send welcome message only if the session is brand new (no messages yet)
+        if not session.get("messages"):
+            welcome_message = {
+                "role": "assistant",
+                "content": f"Welcome, {session['consumer_name']}! I'm North Star, your outdoor gear assistant. How can I help you today?",
+                "timestamp": datetime.utcnow().isoformat(),
+                "card_payload": {
+                    "type": "help_menu",
+                    "data": {
+                        "options": [
+                            "Track my order",
+                            "Returns & exchanges",
+                            "Product recommendations",
+                            "Talk to a human agent"
+                        ],
+                        "suggest_handoff": False
+                    }
                 }
             }
-        }
 
-        # Store welcome message in MongoDB session history
-        await mongo.sessions.update_one(
-            {"session_id": session_id},
-            {"$push": {"messages": welcome_message}},
-        )
+            # Store welcome message in MongoDB session history
+            await mongo.sessions.update_one(
+                {"session_id": session_id},
+                {"$push": {"messages": welcome_message}},
+            )
 
-        # Send welcome message over WebSocket
-        await websocket.send_json({
-            "type": "message",
-            **welcome_message
-        })
+            # Send welcome message over WebSocket
+            await websocket.send_json({
+                "type": "message",
+                **welcome_message
+            })
 
         while True:
             # Receive message from consumer
@@ -282,11 +283,11 @@ async def dashboard_chat_viewer(websocket: WebSocket, session_id: str):
                     **agent_message,
                 })
 
-                # Broadcast to other viewers
+                # Broadcast to other viewers (excluding the sending agent socket)
                 await manager.broadcast_to_chat_viewers(session_id, {
                     "type": "message",
                     **agent_message,
-                })
+                }, exclude_ws=websocket)
 
     except WebSocketDisconnect:
         manager.disconnect_chat_viewer(session_id, websocket)
