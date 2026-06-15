@@ -1,7 +1,29 @@
 [project]
-name = "backend"
+name = "northstar-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "North Star AI Chatbot — FastAPI Backend"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    # Web framework
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+
+    # Database
+    "motor>=3.6",
+    "pymongo>=4.9",
+
+    # Vector DB
+    "qdrant-client>=1.12",
+
+    # AI / Agent
+    "google-genai>=1.0",
+    "langgraph>=0.4",
+    "langchain-google-genai>=2.0",
+    "langchain-core>=0.3",
+
+    # Utilities
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0",
+]
