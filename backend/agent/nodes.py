@@ -372,6 +372,19 @@ def _process_tool_response(response: AIMessage, state: AgentState) -> dict[str, 
         *tool_messages,
     ])
 
+    # Check if a major query tool was executed and append the resolution check
+    has_major_tool = False
+    for tool_call in response.tool_calls:
+        tool_name = tool_call["name"]
+        if tool_name in ("track_order", "initiate_return", "search_products", "get_nearest_products", "get_return_policy"):
+            has_major_tool = True
+            break
+
+    if has_major_tool:
+        final_content = final_response.content
+        if isinstance(final_content, str):
+            final_response.content = final_content.rstrip() + "\n\nWas this ok or you want to proceed?"
+
     return {
         "messages": [response, *tool_messages[1:], final_response],
         "last_card_payload": card_payload,

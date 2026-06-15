@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CardRenderer } from "@/components/chat/card-renderer";
 import { cn, formatMessageContent } from "@/lib/utils";
+import { MarkdownRenderer } from "@/components/chat/markdown-renderer";
 
 interface Message {
   role: "user" | "assistant" | "agent" | "system";
@@ -112,6 +113,8 @@ export function ChatViewer({
               timestamp: new Date().toISOString()
             }
           ]);
+        } else if (data.type === "status_change") {
+          setSession((prev) => (prev ? { ...prev, status: data.status } : null));
         }
       } catch (err) {
         console.error("Error reading WS broadcast:", err);
@@ -319,7 +322,11 @@ export function ChatViewer({
                         : "bg-primary/10 text-primary border-primary/20"
                     )}
                   >
-                    {formatMessageContent(msg.content)}
+                    {isUser ? (
+                      formatMessageContent(msg.content)
+                    ) : (
+                      <MarkdownRenderer content={formatMessageContent(msg.content)} />
+                    )}
                   </div>
                 )}
 

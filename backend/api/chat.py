@@ -104,6 +104,61 @@ async def consumer_chat(websocket: WebSocket, session_id: str):
                 **user_message,
             })
 
+            # Check if user says "ok" to resolve the chat
+            session = await mongo.sessions.find_one({"session_id": session_id})
+            messages = session.get("messages", [])
+            
+            is_resolving = False
+            user_lower = user_content.lower().strip(".,! ")
+            if user_lower in ("ok", "okay", "yes", "fine", "perfect", "resolved", "that's ok", "thats ok", "all good"):
+                if len(messages) >= 2:
+                    last_assistant_msg = messages[-2]
+                    if last_assistant_msg.get("role") in ("assistant", "agent"):
+                        content = last_assistant_msg.get("content", "")
+                        if "was this ok or you want to proceed" in content.lower():
+                            is_resolving = True
+
+            if is_resolving:
+                # Resolve the session in DB
+                await mongo.sessions.update_one(
+                    {"session_id": session_id},
+                    {"$set": {"status": "resolved"}}
+                )
+                
+                # Send system resolution message
+                resolution_message = {
+                    "role": "system",
+                    "content": "Chat resolved. Thank you! Please let us know if you need anything else in a new session. 🙌",
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+                
+                await mongo.sessions.update_one(
+                    {"session_id": session_id},
+                    {"$push": {"messages": resolution_message}},
+                )
+                
+                # Send to consumer WebSocket
+                await websocket.send_json({
+                    "type": "message",
+                    **resolution_message
+                })
+                await websocket.send_json({
+                    "type": "status_change",
+                    "status": "resolved"
+                })
+                
+                # Also broadcast to dashboard chat viewers
+                await manager.broadcast_to_chat_viewers(session_id, {
+                    "type": "message",
+                    **resolution_message
+                })
+                await manager.broadcast_to_chat_viewers(session_id, {
+                    "type": "status_change",
+                    "status": "resolved"
+                })
+                
+                continue
+
             # Check if session is taken over by human agent
             current_session = await mongo.sessions.find_one(
                 {"session_id": session_id},

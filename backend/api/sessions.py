@@ -33,6 +33,7 @@ async def create_session(body: SessionCreate):
     session = ChatSession(
         session_id=session_id,
         consumer_name=body.consumer_name,
+        guest_id=body.guest_id,
         status=SessionStatus.ACTIVE,
         started_at=datetime.utcnow(),
         messages=[],
@@ -40,7 +41,25 @@ async def create_session(body: SessionCreate):
 
     await mongo.sessions.insert_one(session.model_dump())
 
-    return {"session_id": session_id, "consumer_name": body.consumer_name}
+    return {
+        "session_id": session_id,
+        "consumer_name": body.consumer_name,
+        "guest_id": body.guest_id,
+    }
+
+
+@router.get("/guest/{guest_id}")
+async def list_guest_sessions(guest_id: str):
+    """
+    List all past sessions for a specific guest ID.
+    """
+    cursor = mongo.sessions.find(
+        {"guest_id": guest_id},
+        {"_id": 0, "session_id": 1, "consumer_name": 1, "status": 1, "started_at": 1},
+    ).sort("started_at", -1)
+
+    sessions = await cursor.to_list(length=100)
+    return sessions
 
 
 @router.get("")
@@ -131,5 +150,40 @@ async def resolve_session(session_id: str):
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
+
+    # Broadcast status change and system resolution message to consumer and dashboard viewers
+    from api.websocket_manager import manager
+    
+    resolution_message = {
+        "role": "system",
+        "content": "This session has been marked as resolved.",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    
+    # Store system resolution message in history
+    await mongo.sessions.update_one(
+        {"session_id": session_id},
+        {"$push": {"messages": resolution_message}},
+    )
+    
+    # Broadcast to consumer WebSocket
+    await manager.send_to_consumer(session_id, {
+        "type": "message",
+        **resolution_message
+    })
+    await manager.send_to_consumer(session_id, {
+        "type": "status_change",
+        "status": SessionStatus.RESOLVED.value
+    })
+    
+    # Broadcast to dashboard chat viewers
+    await manager.broadcast_to_chat_viewers(session_id, {
+        "type": "message",
+        **resolution_message
+    })
+    await manager.broadcast_to_chat_viewers(session_id, {
+        "type": "status_change",
+        "status": SessionStatus.RESOLVED.value
+    })
 
     return {"session_id": session_id, "status": SessionStatus.RESOLVED.value}

@@ -121,6 +121,7 @@ class ChatSession(BaseModel):
 
     session_id: str
     consumer_name: str
+    guest_id: Optional[str] = None
     status: SessionStatus = SessionStatus.ACTIVE
     started_at: datetime = Field(default_factory=datetime.utcnow)
     messages: list[ChatMessage] = Field(default_factory=list)
@@ -137,6 +138,7 @@ class SessionCreate(BaseModel):
     """Request body for creating a new chat session."""
 
     consumer_name: str = Field(min_length=1, max_length=100)
+    guest_id: Optional[str] = None
 
 
 class OrderCreate(BaseModel):
