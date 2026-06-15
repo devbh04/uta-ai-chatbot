@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Package, Search, PlusCircle, Trash2, Edit, RefreshCw, X, Loader2, Tag } from "lucide-react";
+import { API_URL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +78,7 @@ export function ProductsTab() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/products");
+      const res = await fetch(`${API_URL}/api/products`);
       if (!res.ok) throw new Error("Failed to load products");
       const data = await res.json();
       setProducts(data);
@@ -98,7 +99,7 @@ export function ProductsTab() {
   const handleDeleteProduct = async (productId: string) => {
     if (!confirm("Are you sure you want to delete this product from database and vector indexes?")) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/products/${productId}`, {
+      const res = await fetch(`${API_URL}/api/products/${productId}`, {
         method: "DELETE"
       });
       if (!res.ok) throw new Error("Delete failed");
@@ -119,7 +120,7 @@ export function ProductsTab() {
     const tagsArray = prodTags.split(",").map((t) => t.trim()).filter((t) => t !== "");
 
     try {
-      const res = await fetch("http://localhost:8000/api/products", {
+      const res = await fetch(`${API_URL}/api/products`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,7 +160,7 @@ export function ProductsTab() {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/products/${editingProduct.product_id}`, {
+      const res = await fetch(`${API_URL}/api/products/${editingProduct.product_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

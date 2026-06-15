@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { MessageSquare, ShieldAlert, CheckCircle2, User, Loader2, ArrowRight, Radio } from "lucide-react";
+import { API_URL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,7 +27,7 @@ export function ChatsTab({
 
   const fetchSessions = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/sessions");
+      const res = await fetch(`${API_URL}/api/sessions`);
       if (!res.ok) throw new Error("Failed to load sessions");
       const data = await res.json();
       setSessions(data);
@@ -47,7 +48,7 @@ export function ChatsTab({
 
   const handleTakeover = async (sessionId: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/${sessionId}/takeover`, {
+      const res = await fetch(`${API_URL}/api/sessions/${sessionId}/takeover`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agent_name: "Agent Smith" })

@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CardRenderer } from "@/components/chat/card-renderer";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatMessageContent } from "@/lib/utils";
+import { cn, formatMessageContent, API_URL, WS_URL } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/chat/markdown-renderer";
 
 interface Message {
@@ -62,7 +62,7 @@ export default function ChatPage() {
   const loadPastSessions = async (gId: string) => {
     if (!gId) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/guest/${gId}`);
+      const res = await fetch(`${API_URL}/api/sessions/guest/${gId}`);
       if (res.ok) {
         const data = await res.json();
         setPastSessions(data);
@@ -98,7 +98,7 @@ export default function ChatPage() {
 
     try {
       // POST to backend api
-      const res = await fetch("http://localhost:8000/api/sessions", {
+      const res = await fetch(`${API_URL}/api/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consumer_name: name, guest_id: guestId })
@@ -153,7 +153,7 @@ export default function ChatPage() {
     setIsMobileSidebarOpen(false);
 
     try {
-      const res = await fetch("http://localhost:8000/api/sessions", {
+      const res = await fetch(`${API_URL}/api/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consumer_name: userName, guest_id: guestId })
@@ -185,7 +185,7 @@ export default function ChatPage() {
     setIsMobileSidebarOpen(false);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/${sId}`);
+      const res = await fetch(`${API_URL}/api/sessions/${sId}`);
       if (!res.ok) throw new Error("Failed to load session");
       const data = await res.json();
       setUserName(data.consumer_name);
@@ -206,8 +206,7 @@ export default function ChatPage() {
     if (!sessionId || !isNameEntered) return;
 
     // Connect to backend WS
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//localhost:8000/ws/consumer/${sessionId}`;
+    const wsUrl = `${WS_URL}/ws/consumer/${sessionId}`;
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 

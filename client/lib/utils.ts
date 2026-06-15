@@ -21,3 +21,11 @@ export function formatMessageContent(content: any): string {
   
   return String(content);
 }
+
+// Config Constants
+export const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+// For WebSockets, we replace http/https with ws/wss from the configured URL
+export const WS_URL = process.env.NEXT_PUBLIC_BACKEND_URL 
+  ? process.env.NEXT_PUBLIC_BACKEND_URL.replace(/^http/, 'ws') 
+  : "ws://localhost:8000";

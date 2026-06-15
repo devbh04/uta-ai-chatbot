@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CardRenderer } from "@/components/chat/card-renderer";
-import { cn, formatMessageContent } from "@/lib/utils";
+import { cn, formatMessageContent, API_URL, WS_URL } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/chat/markdown-renderer";
 
 interface Message {
@@ -56,7 +56,7 @@ export function ChatViewer({
   // Load history
   const loadHistory = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/${sessionId}`);
+      const res = await fetch(`${API_URL}/api/sessions/${sessionId}`);
       if (!res.ok) throw new Error("Failed to load session history");
       const data = await res.json();
       setSession(data);
@@ -78,8 +78,7 @@ export function ChatViewer({
   useEffect(() => {
     if (!sessionId) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//localhost:8000/ws/dashboard/chat/${sessionId}`;
+    const url = `${WS_URL}/ws/dashboard/chat/${sessionId}`;
     const ws = new WebSocket(url);
     socketRef.current = ws;
 
@@ -162,7 +161,7 @@ export function ChatViewer({
   // Resolve chat
   const handleResolveSession = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/${sessionId}/resolve`, {
+      const res = await fetch(`${API_URL}/api/sessions/${sessionId}/resolve`, {
         method: "PATCH"
       });
       if (!res.ok) throw new Error("Resolve failed");
@@ -179,7 +178,7 @@ export function ChatViewer({
 
   const handleTakeover = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/${sessionId}/takeover`, {
+      const res = await fetch(`${API_URL}/api/sessions/${sessionId}/takeover`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agent_name: "Agent Smith" })

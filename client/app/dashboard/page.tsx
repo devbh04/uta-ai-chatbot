@@ -21,7 +21,7 @@ import { ChatsTab } from "@/components/dashboard/chats-tab";
 import { ChatViewer } from "@/components/dashboard/chat-viewer";
 import { OrdersTab } from "@/components/dashboard/orders-tab";
 import { ProductsTab } from "@/components/dashboard/products-tab";
-import { cn } from "@/lib/utils";
+import { cn, API_URL, WS_URL } from "@/lib/utils";
 
 interface HandoffAlert {
   id: string;
@@ -77,8 +77,7 @@ export default function DashboardPage() {
 
   // Connect to Alert Websocket
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//localhost:8000/ws/dashboard/alerts`;
+    const url = `${WS_URL}/ws/dashboard/alerts`;
     const ws = new WebSocket(url);
     alertSocketRef.current = ws;
 
@@ -133,7 +132,7 @@ export default function DashboardPage() {
 
   const handleTakeoverFromAlert = async (handoffAlert: HandoffAlert) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/sessions/${handoffAlert.session_id}/takeover`, {
+      const res = await fetch(`${API_URL}/api/sessions/${handoffAlert.session_id}/takeover`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agent_name: "Agent Smith" })

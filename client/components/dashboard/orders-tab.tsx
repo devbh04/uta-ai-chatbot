@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Package, Search, PlusCircle, AlertCircle, Edit, RefreshCw, X, Loader2 } from "lucide-react";
+import { API_URL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +50,7 @@ export function OrdersTab() {
 
   const fetchOrders = async () => {
     try {
-      const url = new URL("http://localhost:8000/api/orders");
+      const url = new URL(`${API_URL}/api/orders`);
       if (statusFilter !== "ALL") {
         url.searchParams.append("status", statusFilter);
       }
@@ -78,7 +79,7 @@ export function OrdersTab() {
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     setTransitionError(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/orders/${orderId}/status`, {
+      const res = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus })
@@ -126,7 +127,7 @@ export function OrdersTab() {
 
     setSubmittingOrder(true);
     try {
-      const res = await fetch("http://localhost:8000/api/orders", {
+      const res = await fetch(`${API_URL}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
