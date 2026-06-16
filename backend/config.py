@@ -17,6 +17,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # --- LLM Provider ---
+    # Options: "gemini" or "azure"
+    llm_provider: str = "gemini"
+
     # --- Gemini ---
     gemini_api_key: str = ""
 
@@ -24,6 +28,12 @@ class Settings(BaseSettings):
     gcp_credentials_path: str = ""
     gcp_project: str = ""
     gcp_location: str = "us-central1"
+
+    # --- Azure OpenAI ---
+    azure_openai_endpoint: str = ""
+    azure_openai_api_key: str = ""
+    azure_openai_deployment: str = ""
+    azure_openai_api_version: str = "2024-10-01-preview"
 
     # --- MongoDB ---
     mongodb_uri: str = "mongodb://localhost:27017"

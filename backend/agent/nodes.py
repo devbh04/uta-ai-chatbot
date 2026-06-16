@@ -34,23 +34,37 @@ import os
 if settings.gcp_credentials_path:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.gcp_credentials_path
 
+def create_chat_model(temperature: float = 0.7) -> Any:
+    """Helper to initialize the LLM based on settings.llm_provider."""
+    if settings.llm_provider == "azure":
+        from langchain_openai import AzureChatOpenAI
+        logger.info("Initializing Azure OpenAI Chat Model (Deployment: %s, Endpoint: %s)", settings.azure_openai_deployment, settings.azure_openai_endpoint)
+        return AzureChatOpenAI(
+            azure_endpoint=settings.azure_openai_endpoint,
+            api_key=settings.azure_openai_api_key,
+            azure_deployment=settings.azure_openai_deployment,
+            api_version=settings.azure_openai_api_version,
+            temperature=temperature,
+        )
+    elif settings.gcp_project and settings.gcp_credentials_path:
+        from langchain_google_vertexai import ChatVertexAI
+        logger.info("Initializing Vertex AI Chat Model (Project: %s, Location: %s)", settings.gcp_project, settings.gcp_location)
+        return ChatVertexAI(
+            model="gemini-2.5-flash",
+            project=settings.gcp_project,
+            location=settings.gcp_location,
+            temperature=temperature,
+        )
+    else:
+        logger.info("Initializing Google AI Studio Chat Model")
+        return ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=settings.gemini_api_key,
+            temperature=temperature,
+        )
+
 # Initialize the LLM — shared across all nodes
-if settings.gcp_project and settings.gcp_credentials_path:
-    from langchain_google_vertexai import ChatVertexAI
-    logger.info("Initializing Vertex AI Chat Model (Project: %s, Location: %s)", settings.gcp_project, settings.gcp_location)
-    llm = ChatVertexAI(
-        model="gemini-2.5-flash",
-        project=settings.gcp_project,
-        location=settings.gcp_location,
-        temperature=0.7,
-    )
-else:
-    logger.info("Initializing Google AI Studio Chat Model")
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=settings.gemini_api_key,
-        temperature=0.7,
-    )
+llm = create_chat_model(temperature=0.7)
 
 # LLM with tools bound — for nodes that need tool calling
 llm_with_tools = llm.bind_tools(ALL_TOOLS)
@@ -75,20 +89,7 @@ def intent_router(state: AgentState) -> dict[str, Any]:
     last_message = messages[-1]
 
     # Use a separate LLM call for classification (low temperature for consistency)
-    if settings.gcp_project and settings.gcp_credentials_path:
-        from langchain_google_vertexai import ChatVertexAI
-        classifier = ChatVertexAI(
-            model="gemini-2.5-flash",
-            project=settings.gcp_project,
-            location=settings.gcp_location,
-            temperature=0.1,
-        )
-    else:
-        classifier = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=settings.gemini_api_key,
-            temperature=0.1,
-        )
+    classifier = create_chat_model(temperature=0.1)
 
     response = classifier.invoke([
         SystemMessage(content=INTENT_CLASSIFICATION_PROMPT),
