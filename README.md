@@ -1,121 +1,167 @@
-# North Star AI Chatbot — Cloud API Setup & Quickstart Guide
+# 🧭 North Star AI Chatbot — Quickstart & Setup Helper
 
-This guide walks you through setting up and running the North Star Outfitters AI Chatbot using fully hosted cloud APIs for all services: **MongoDB Atlas**, **Qdrant Cloud**, and the **Google Gemini API**.
-
----
-
-## 🛠️ 1. Cloud Credentials Checklist
-
-Before starting, make sure you have gathered the following API details:
-
-### 🟢 A. Google Gemini API
-- Get an API key from the [Google AI Studio](https://aistudio.google.com/).
-- Key name: `GEMINI_API_KEY`
-
-### 🟢 B. MongoDB Atlas (Cloud database)
-1. Sign in to your [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account.
-2. Create a free cluster.
-3. In **Security -> Database Access**, create a user with read/write credentials.
-4. In **Security -> Network Access**, whitelist IP address `0.0.0.0/30` (or your current IP) to allow connections.
-5. In **Database -> Clusters**, click **Connect** -> **Drivers** (Python).
-6. Copy the connection URI:
-   `mongodb+srv://<username>:<password>@cluster0.xxxx.mongodb.net/?retryWrites=true&w=majority`
-   *(Replace `<username>` and `<password>` with your database user credentials)*.
-
-### 🟢 C. Qdrant Cloud (Cloud vector index)
-1. Sign in to [Qdrant Cloud Console](https://cloud.qdrant.io/).
-2. Create a cluster (free tier is sufficient).
-3. Click on the Cluster to view its details. Copy the **Endpoint URL** (should end with `:6333` or look like a secure HTTPS endpoint: `https://xxx-xxx.gcp.cloud.qdrant.io`).
-4. Navigate to **API Keys** in the Qdrant Cloud sidebar, create an API key, and copy it.
+Welcome to the North Star AI Chatbot setup guide. This document helps you configure, install, and run the complete system locally. The project consists of a FastAPI backend and a Next.js frontend, integrated with MongoDB Atlas, Qdrant Cloud, and Google Vertex AI (via GCP Service Account credentials).
 
 ---
 
-## ⚙️ 2. Environment Configuration
+## 🛠️ Step 1: Clone and Enter the Directory
 
-1. **Navigate to the backend folder:**
+Start by clone/downloading the repository and entering the project directory:
+
+```bash
+git clone <repository_url> uta-ai-chatbot
+cd uta-ai-chatbot
+```
+
+---
+
+## 🔑 Step 2: Google Cloud Platform (Vertex AI) Credentials
+
+This application utilizes **Google Vertex AI** (for embeddings and language model operations) authenticated via a GCP Service Account. 
+
+> [!NOTE]
+> This system does **not** support or use AI Studio Google API Keys (`GEMINI_API_KEY`). Authentication is done strictly through GCP Service Account keys.
+
+### 1. Create a GCP Service Account
+1. Open the [Google Cloud Console](https://console.cloud.google.com/).
+2. Select your Google Cloud project (or create one).
+3. Navigate to **IAM & Admin > Service Accounts**.
+4. Click **Create Service Account**, fill in a name, and proceed.
+5. In the Roles selection step, grant the service account the **Vertex AI User** role.
+6. Click **Done**.
+
+### 2. Download the JSON Key
+1. Select your newly created service account from the list.
+2. Click the **Keys** tab.
+3. Click **Add Key > Create new key**.
+4. Choose **JSON** format and click **Create**.
+5. Save the downloaded JSON file securely on your computer (e.g., at `/Users/username/gcp-keys/service-account.json`).
+
+> [!WARNING]
+> Keep your service account credentials key JSON file private. Do **not** commit this key file to GitHub or any public repository.
+
+---
+
+## 🗄️ Step 3: Database & Vector Search Preparation
+
+Gather your credentials for the cloud databases:
+
+### 🟢 A. MongoDB Atlas (Cloud Database)
+1. Sign in or sign up at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+2. Deploy a free cluster.
+3. Under **Security > Database Access**, add a database user with read and write permissions.
+4. Under **Security > Network Access**, whitelist your IP or allow access from anywhere (`0.0.0.0/0`) for development.
+5. Under **Database > Clusters**, click **Connect > Drivers** and copy your Python driver connection URI:
+   ```text
+   mongodb+srv://<username>:<password>@cluster0.xxxx.mongodb.net/?retryWrites=true&w=majority
+   ```
+
+### 🟢 B. Qdrant Cloud (Vector Index)
+1. Sign in or sign up at [Qdrant Cloud](https://cloud.qdrant.io/).
+2. Create a free-tier cluster.
+3. Under Cluster Details, copy your **Endpoint URL** (e.g., `https://xxx-xxx.gcp.cloud.qdrant.io` — *do not include a trailing slash*).
+4. Under **API Keys**, create a new API key and copy it.
+
+---
+
+## ⚙️ Step 4: Environment Configurations
+
+You need to define the environment variables for both the backend and client.
+
+### 1. Backend Environment Setup (`backend/.env`)
+1. Navigate to the backend directory:
    ```bash
    cd backend
    ```
-
-2. **Copy the example configuration to create the live environment file:**
+2. Copy the example environment template:
    ```bash
    cp .env.example .env
    ```
-
-3. **Open `backend/.env` and replace placeholders with your cloud API credentials:**
+3. Open `backend/.env` and configure the following variables:
    ```env
-   # === Gemini API ===
-   GEMINI_API_KEY=AIzaSyA_example_gemini_key
+   # === GCP / Vertex AI ===
+   GCP_CREDENTIALS_PATH=/absolute/path/to/your/service-account.json
+   GCP_PROJECT=your-gcp-project-id
+   GCP_LOCATION=us-central1
 
-   # === MongoDB Atlas (Cloud) ===
-   MONGODB_URI=mongodb+srv://myusername:mypassword@cluster0.abcde.mongodb.net/?retryWrites=true&w=majority
+   # === MongoDB ===
+   MONGODB_URI=mongodb+srv://your_user:your_password@cluster0.xxxx.mongodb.net/
    MONGODB_DB_NAME=northstar
 
-   # === Qdrant Cloud (Cloud) ===
-   QDRANT_URL=https://e84c98f9-4b21-4203-b06f-xxxx.us-east-1.gcp.cloud.qdrant.io
-   QDRANT_API_KEY=your_qdrant_cloud_api_key_here
+   # === Qdrant ===
+   QDRANT_URL=https://your-qdrant-cluster.gcp.cloud.qdrant.io
+   QDRANT_API_KEY=your_qdrant_api_key_here
    QDRANT_COLLECTION=products
 
    # === App Settings ===
    CORS_ORIGINS=http://localhost:3000
    ```
 
-   > [!IMPORTANT]
-   > Ensure you remove any trailing slash `/` at the end of the `QDRANT_URL`. The backend uses the standard HTTP protocol (secure TLS) to query the cloud endpoint.
+### 2. Frontend Environment Setup (`client/.env.local`)
+1. Navigate to the client directory:
+   ```bash
+   cd ../client
+   ```
+2. Copy the example client template:
+   ```bash
+   cp .env.example .env.local
+   ```
+3. Open `client/.env.local` and configure your API URL:
+   ```env
+   NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+   ```
 
 ---
 
-## 🚀 3. Starting the Platform
+## 🚀 Step 5: Launching the Platform
 
-Open two separate terminal windows to run both services.
+Run the backend and frontend servers in separate terminal windows.
 
-### 🐍 Step A: Launch the Backend (Port 8000)
-1. **Navigate to the backend directory:**
+### 🐍 Window 1: Start the Backend FastAPI Server
+1. From the project root, navigate to the backend folder:
    ```bash
    cd backend
    ```
-2. **Install virtual environment packages (using uv):**
+2. Install dependencies with `uv`:
    ```bash
    uv sync
    ```
-3. **Start the FastAPI server:**
+3. Start the server:
    ```bash
    uv run uvicorn main:app --reload --port 8000
    ```
 
-   > [!TIP]
-   > **First Launch Behavior:** 
-   > When the FastAPI server starts, it connects to your MongoDB Atlas cluster and Qdrant Cloud instance. It will automatically check if the `products` collection exists in Qdrant (if not, it creates it with 768 dimensions for Gemini embeddings) and seeds **12 default outdoor products** and **6 mockup orders** with pre-computed Gemini vector embeddings directly into your cloud databases.
+> [!TIP]
+> **Database Seeding on First Launch:**
+> When the backend first starts, it automatically creates the Qdrant product vector collection (configured with 768 dimensions for Gemini embeddings) and populates the MongoDB database with standard products and test orders.
 
 ---
 
-### ⚛️ Step B: Launch the Next.js Frontend (Port 3000)
-1. **Navigate to the client directory:**
+### ⚛️ Window 2: Start the Next.js Frontend
+1. From the project root, navigate to the client folder:
    ```bash
    cd client
    ```
-2. **Install Node.js packages:**
+2. Install node modules:
    ```bash
    pnpm install
    ```
-3. **Run the developer local server:**
+3. Launch the development server:
    ```bash
    pnpm dev
    ```
 
 ---
 
-## 🎮 4. Verification Check
+## 🎮 Step 6: Verifying Setup & Functionality
 
-Open [http://localhost:3000](http://localhost:3000) in your browser:
+Open [http://localhost:3000](http://localhost:3000) in your web browser:
 
-1. Click **Start Chat Portal**, enter your guest name, and send:
+1. **Test Search and Chat**: Click **Start Chat Portal**, enter your name, and send a message like:
    `"What outdoor products do you have?"`
-   *(Verify the assistant fetches semantic matches from Qdrant Cloud and renders product cards)*
-2. Send: `"Track order ORD-001"`
-   *(Verify the status progress timeline renders from MongoDB Atlas)*
-3. Send: `"Can I talk to a human agent?"`
-   *(Verify handoff status card loads)*
-4. Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) in a separate tab.
-   - Verify you hear the synthesised chime and see a persistent handoff toast alert.
-   - Click **Take Over Chat** to open the live chat console and chat between pages in real-time.
+   Verify that the assistant queries Qdrant and displays interactive product cards.
+2. **Test Order Tracking**: Send `"Track order ORD-001"` and verify the order timeline renders with data from MongoDB.
+3. **Test Handoff & Support Dashboard**:
+   - In the client chat, write `"I want to speak with a human agent"`.
+   - In a new tab, open [http://localhost:3000/dashboard](http://localhost:3000/dashboard).
+   - Verify that the support dashboard plays an audio chime, pops up a toast alert, and allows you to click **Take Over Chat** to chat in real-time.
