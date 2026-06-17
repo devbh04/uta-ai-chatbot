@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     qdrant_collection: str = "products"
 
     # --- App ---
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     @property
     def cors_origin_list(self) -> list[str]:

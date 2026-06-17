@@ -23,9 +23,33 @@ export function formatMessageContent(content: any): string {
 }
 
 // Config Constants
-export const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const getBackendUrls = () => {
+  if (typeof window !== "undefined") {
+    if (process.env.NEXT_PUBLIC_BACKEND_URL) {
+      const httpUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const wsUrl = httpUrl.replace(/^http/, "ws");
+      return { httpUrl, wsUrl };
+    }
+    
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
+    
+    return {
+      httpUrl: `${protocol}//${hostname}:8000`,
+      wsUrl: `${wsProtocol}//${hostname}:8000`
+    };
+  }
+  
+  const fallback = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  return {
+    httpUrl: fallback,
+    wsUrl: fallback.replace(/^http/, "ws")
+  };
+};
 
-// For WebSockets, we replace http/https with ws/wss from the configured URL
-export const WS_URL = process.env.NEXT_PUBLIC_BACKEND_URL 
-  ? process.env.NEXT_PUBLIC_BACKEND_URL.replace(/^http/, 'ws') 
-  : "ws://localhost:8000";
+const urls = getBackendUrls();
+export const API_URL = urls.httpUrl;
+export const WS_URL = urls.wsUrl;
+
+
