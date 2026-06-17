@@ -38,6 +38,7 @@ export default function DashboardPage() {
 
   const [alerts, setAlerts] = useState<HandoffAlert[]>([]);
   const [isAlertsConnected, setIsAlertsConnected] = useState(false);
+  const [hasTestedAudio, setHasTestedAudio] = useState(false);
   const alertSocketRef = useRef<WebSocket | null>(null);
 
   // Play double tone chime using Web Audio API (no assets needed)
@@ -70,53 +71,84 @@ export default function DashboardPage() {
 
       osc2.start(ctx.currentTime + 0.12);
       osc2.stop(ctx.currentTime + 0.7);
+
+      // Close context when sound ends to avoid audio context exhaustion
+      setTimeout(() => {
+        try {
+          ctx.close();
+        } catch (_) {}
+      }, 1000);
     } catch (e) {
       console.error("Synthesizer error:", e);
     }
   };
 
-  // Connect to Alert Websocket
+  // Connect to Alert Websocket with auto-reconnect
   useEffect(() => {
-    const url = `${WS_URL}/ws/dashboard/alerts`;
-    const ws = new WebSocket(url);
-    alertSocketRef.current = ws;
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let isComponentMounted = true;
 
-    ws.onopen = () => {
-      setIsAlertsConnected(true);
-      console.log("Global alert system socket connected.");
-    };
+    const connect = () => {
+      if (!isComponentMounted) return;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("Dashboard Alert received:", data);
+      const url = `${WS_URL}/ws/dashboard/alerts`;
+      console.log("Connecting to global alert system...", url);
+      ws = new WebSocket(url);
+      alertSocketRef.current = ws;
 
-        if (data.type === "handoff_alert") {
-          // Play audio sound
-          playSynthesizedChime();
-
-          // Push new persistent toast alert
-          const newAlert: HandoffAlert = {
-            id: `alert-${Date.now()}-${Math.random()}`,
-            session_id: data.session_id,
-            consumer_name: data.consumer_name,
-            summary: data.summary,
-            timestamp: data.timestamp || new Date().toISOString()
-          };
-          setAlerts((prev) => [newAlert, ...prev]);
+      ws.onopen = () => {
+        if (isComponentMounted) {
+          setIsAlertsConnected(true);
+          console.log("Global alert system socket connected.");
         }
-      } catch (err) {
-        console.error("Error reading alert socket message:", err);
-      }
+      };
+
+      ws.onmessage = (event) => {
+        if (!isComponentMounted) return;
+        try {
+          const data = JSON.parse(event.data);
+          console.log("Dashboard Alert received:", data);
+
+          if (data.type === "handoff_alert") {
+            // Play audio sound
+            playSynthesizedChime();
+
+            // Push new persistent toast alert
+            const newAlert: HandoffAlert = {
+              id: `alert-${Date.now()}-${Math.random()}`,
+              session_id: data.session_id,
+              consumer_name: data.consumer_name,
+              summary: data.summary,
+              timestamp: data.timestamp || new Date().toISOString()
+            };
+            setAlerts((prev) => [newAlert, ...prev]);
+          }
+        } catch (err) {
+          console.error("Error reading alert socket message:", err);
+        }
+      };
+
+      ws.onclose = (event) => {
+        if (isComponentMounted) {
+          setIsAlertsConnected(false);
+          console.log("Global alert system socket closed. Reconnecting in 3 seconds...", event.reason);
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("Alert socket error:", err);
+        ws?.close();
+      };
     };
 
-    ws.onclose = () => {
-      setIsAlertsConnected(false);
-      console.log("Global alert system socket closed.");
-    };
+    connect();
 
     return () => {
-      ws.close();
+      isComponentMounted = false;
+      if (ws) ws.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
   }, []);
 
@@ -161,8 +193,24 @@ export default function DashboardPage() {
               </div>
               <span className="font-bold text-xs text-foreground tracking-wide uppercase">North Star Admin</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className={cn("h-1.5 w-1.5 rounded-full", isAlertsConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  playSynthesizedChime();
+                  setHasTestedAudio(true);
+                }}
+                className={cn(
+                  "p-1 rounded hover:bg-secondary transition-colors cursor-pointer text-muted-foreground hover:text-foreground",
+                  !hasTestedAudio && "text-amber-500 animate-pulse"
+                )}
+                title="Click to test chime & enable browser audio notifications"
+              >
+                <Volume2 className="h-4 w-4" />
+              </button>
+              <span
+                className={cn("h-1.5 w-1.5 rounded-full", isAlertsConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500")}
+                title={isAlertsConnected ? "Alert system connected" : "Alert system disconnected"}
+              />
             </div>
           </div>
 
