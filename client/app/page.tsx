@@ -21,7 +21,6 @@ export default function Home() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Badge text="Client Demo Platform" />
         </div>
       </header>
 
