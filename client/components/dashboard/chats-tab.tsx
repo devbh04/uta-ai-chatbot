@@ -139,7 +139,7 @@ export function ChatsTab({
                       {session.handoff_summary || "None"}
                     </td>
                     <td className="p-3 text-muted-foreground">
-                      {session.duration_minutes !== undefined ? `${session.duration_minutes}m` : "N/A"}
+                      {session.duration_minutes !== undefined ? `${session.duration_minutes}s` : "N/A"}
                     </td>
                     <td className="p-3 text-right space-x-1.5 whitespace-nowrap">
                       <Button
