@@ -74,8 +74,20 @@ def track_order(order_id: str) -> dict:
         Returns error message if order not found.
     """
     async def _lookup():
+        clean_id = order_id.upper().replace("#", "").strip()
+        search_ids = [clean_id]
+        if clean_id.isdigit():
+            search_ids.append(f"ORD-{clean_id}")
+        elif not clean_id.startswith("ORD-"):
+            search_ids.append(f"ORD-{clean_id}")
+        else:
+            # If it starts with ORD-, also check the suffix number
+            suffix = clean_id.replace("ORD-", "")
+            if suffix.isdigit():
+                search_ids.append(suffix)
+
         order = await mongo.orders.find_one(
-            {"order_id": order_id.upper()},
+            {"order_id": {"$in": search_ids}},
             {"_id": 0},
         )
         return order
@@ -83,7 +95,7 @@ def track_order(order_id: str) -> dict:
     order = _run_async(_lookup())
 
     if not order:
-        return {"error": f"Order '{order_id}' not found. Please check the order ID and try again."}
+        return {"error": f"Order '{order_id}' not found. Please verify the order number (e.g., #111, #222, #333)."}
 
     # Format datetime fields for readability
     result = {

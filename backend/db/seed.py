@@ -91,6 +91,38 @@ SEED_ORDERS = [
         "created_at": datetime.utcnow() - timedelta(hours=6),
         "estimated_delivery": datetime.utcnow() + timedelta(days=10),
     },
+    {
+        "order_id": "ORD-111",
+        "customer_name": "Alice Johnson",
+        "customer_email": "alice@example.com",
+        "items": [{"product_name": "Summit Down Jacket", "qty": 1, "price": 189.99}],
+        "status": "SHIPPED",
+        "shipping_method": "standard",
+        "created_at": datetime.utcnow() - timedelta(days=2),
+        "estimated_delivery": datetime.utcnow() + timedelta(days=1),
+        "tracking_number": "TRK-11111-TEST",
+    },
+    {
+        "order_id": "ORD-222",
+        "customer_name": "Bob Smith",
+        "customer_email": "bob@example.com",
+        "items": [{"product_name": "Explorer Daypack 20L", "qty": 1, "price": 49.99}],
+        "status": "PROCESSING",
+        "shipping_method": "standard",
+        "created_at": datetime.utcnow() - timedelta(hours=6),
+        "estimated_delivery": datetime.utcnow() + timedelta(days=1),
+    },
+    {
+        "order_id": "ORD-333",
+        "customer_name": "Carol Davis",
+        "customer_email": "carol@example.com",
+        "items": [{"product_name": "Merino Wool Hiking Socks (3-Pack)", "qty": 1, "price": 24.99}],
+        "status": "DELIVERED",
+        "shipping_method": "standard",
+        "created_at": datetime.utcnow() - timedelta(days=5),
+        "estimated_delivery": datetime.utcnow() - timedelta(days=2),
+        "tracking_number": "TRK-33333-TEST",
+    },
 ]
 
 
@@ -403,12 +435,14 @@ SEED_PRODUCTS = [
 
 
 async def seed_orders() -> None:
-    """Insert sample orders if the orders collection is empty."""
+    """Insert sample orders. If count doesn't match len(SEED_ORDERS), drop and re-seed."""
     count = await mongo.orders.count_documents({})
-    if count > 0:
+    if count == len(SEED_ORDERS):
         logger.info("Orders collection already has %d documents — skipping seed.", count)
         return
 
+    logger.info("Orders count (%d) does not match seed count (%d). Re-seeding orders...", count, len(SEED_ORDERS))
+    await mongo.orders.delete_many({})
     await mongo.orders.insert_many(SEED_ORDERS)
     logger.info("Seeded %d sample orders.", len(SEED_ORDERS))
 
